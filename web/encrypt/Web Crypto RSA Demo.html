@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSA Encryption/Decryption Validator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .container form {
+            width: 100%;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        textarea, input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 16px;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .result {
+            height: 150px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            font-size: 16px;
+            color: #333;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>RSA Encryption/Decryption Validator</h2>
+    <form id="rsaForm">
+        <label for="publicKey">Public Key</label>
+        <textarea id="publicKey" rows="4" placeholder="Enter your RSA public key" required></textarea>
+
+        <label for="privateKey">Private Key</label>
+        <textarea id="privateKey" rows="4" placeholder="Enter your RSA private key" required></textarea>
+
+        <label for="plainText">Text to Encrypt</label>
+        <textarea id="plainText" rows="4" placeholder="Enter the text you want to encrypt"
+                  required>Hello World...</textarea>
+        <div id="charCounter">RSA 公钥，最多加密支持 190 个字节。</div>
+        <label for="encryptedData">EncryptedData</label>
+        <textarea id="encryptedData" rows="4"></textarea>
+        <button type="button" onclick="validateRSA()">Validate</button>
+    </form>
+
+    <div id="result" class="result">empty...</div>
+</div>
+
+<script>
+
+    const plainText = document.getElementById('plainText');
+    const charCounter = document.getElementById('charCounter');
+
+    plainText.addEventListener('input', function() {
+        const charCount = plainText.value.length;
+        charCounter.textContent = `Characters: ${charCount} `;
+        // 计算字节数
+        const byteCount = new TextEncoder().encode(plainText.value).length;
+        charCounter.textContent += `Bytes: ${byteCount}`;
+    });
+
+    // 生成 RSA 密钥对
+    async function generateRSAKeyPair() {
+        const keyPair = await window.crypto.subtle.generateKey(
+            {
+                name: "RSA-OAEP",
+                modulusLength: 2048,
+                publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+                hash: {name: "SHA-256"},
+            },
+            true,
+            ["encrypt", "decrypt"]
+        );
+        return keyPair;
+    }
+
+    function arrayBufferToBase64(buffer) {
+        const bytes = new Uint8Array(buffer);
+        const binary = bytes.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+        return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+        const binaryString = window.atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+
+    // 示例使用
+    async function initApp() {
+        try {
+            // 生成 RSA 密钥对
+            const keyPair = await generateRSAKeyPair();
+            console.log("RSA Key Pair Generated:", keyPair);
+
+            // Export public key and private key
+            const publicKey = await window.crypto.subtle.exportKey(
+                "spki", // Public key format
+                keyPair.publicKey
+            );
+            const privateKey = await window.crypto.subtle.exportKey(
+                "pkcs8", // Private key format
+                keyPair.privateKey
+            );
+
+            // Convert binary data to Base64-encoded strings
+            const publicKeyString = arrayBufferToBase64(publicKey);
+            console.log("Public Key:", publicKeyString);
+            document.getElementById('publicKey').value = publicKeyString;
+
+            const privateKeyString = arrayBufferToBase64(privateKey);
+            console.log("Private Key:", privateKeyString);
+            document.getElementById('privateKey').value = privateKeyString;
+
+
+
+
+        } catch (error) {
+            console.error("Encryption/Decryption Error:", error);
+        }
+    }
+
+
+    initApp();
+
+
+    async function decryptDataWithPrivateKey2(encryptedBase64String, privateKeyBase64) {
+        try {
+            // Decode Base64 strings to ArrayBuffer
+            const encryptedData = base64ToArrayBuffer(encryptedBase64String);
+            const privateKeyBytes = base64ToArrayBuffer(privateKeyBase64);
+
+            // Import private key
+            const privateKey = await window.crypto.subtle.importKey(
+                "pkcs8",
+                privateKeyBytes,
+                {
+                    name: "RSA-OAEP",
+                    hash: {name: "SHA-256"}
+                },
+                true,
+                ["decrypt"]
+            );
+
+            // Decrypt data
+            const decryptedData = await window.crypto.subtle.decrypt(
+                {
+                    name: "RSA-OAEP"
+                },
+                privateKey,
+                encryptedData
+            );
+
+            // Convert decrypted ArrayBuffer to text
+            return new TextDecoder().decode(decryptedData);
+        } catch (error) {
+            console.error('Decryption error:', error);
+            throw new Error('Decryption failed. Check the private key and encrypted data.');
+        }
+    }
+
+
+    async function encryptDataWithPublicKey(data, publicKey) {
+        const encodedData = new TextEncoder().encode(data);
+        const encryptedData = await window.crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            publicKey,
+            encodedData
+        );
+        return encryptedData;
+    }
+
+    async function encryptDataWithPublicKeyBase64(data, base64PublicKey) {
+        // 解码 Base64 编码的公钥
+        const binaryDerString = atob(base64PublicKey);
+        const binaryDer = new Uint8Array([...binaryDerString].map(char => char.charCodeAt(0)));
+
+        // 导入公钥
+        const publicKey = await window.crypto.subtle.importKey(
+            "spki", // 公钥格式，SPKI是用于导入公共RSA密钥的标准
+            binaryDer.buffer,
+            {
+                name: "RSA-OAEP",
+                hash: "SHA-256" // 使用的哈希算法
+            },
+            true, // 可导出
+            ["encrypt"] // 用于加密
+        );
+
+        // 将数据编码为字节数组
+        const encodedData = new TextEncoder().encode(data);
+
+        // 使用公钥加密数据
+        const encryptedData = await window.crypto.subtle.encrypt(
+            {
+                name: "RSA-OAEP",
+            },
+            publicKey,
+            encodedData
+        );
+
+        // 将 ArrayBuffer 转换为 Base64 编码的字符串
+        const base64EncryptedData = btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
+
+        return base64EncryptedData;
+    }
+
+    async function validateRSA() {
+        // Placeholder function for RSA validation logic
+        const publicKey = document.getElementById('publicKey').value;
+        const privateKey = document.getElementById('privateKey').value;
+        // 要加密的数据
+        const plainText = document.getElementById('plainText').value;
+        if (!publicKey || !privateKey || !plainText) {
+            alert('Please enter all required fields.');
+            return;
+        }
+        console.log("plainText", plainText)
+        console.log("privateKey", privateKey)
+
+        // 使用公钥加密数据
+        const encryptedData = await encryptDataWithPublicKeyBase64(plainText, publicKey);
+        console.log("encryptedData", encryptedData)
+        document.getElementById('encryptedData').value = encryptedData;
+
+        // 使用私钥解密数据
+        const decryptedText = await decryptDataWithPrivateKey2(encryptedData, privateKey);
+        const resultDiv = document.getElementById('result');
+        resultDiv.style.display = 'block';
+        resultDiv.textContent = `Decrypted Text: ${decryptedText}`;
+    }
+</script>
+
+</body>
+</html>
