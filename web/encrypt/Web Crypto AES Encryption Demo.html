@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AES Encryption/Decryption Demo</title>
+    <title>AES Encryption/Decryption Demo(AES-GCM)</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -129,6 +129,7 @@
         try {
             const key = await generateKey(keyString);
             const { encrypted, iv } = await encryptText(key, text);
+            // ：加密时生成一个随机的 12 字节（96 位）的 IV。这个 IV 被附加在加密后的数据前面，用于解密时的恢复。
             const result = new Uint8Array([...iv, ...encrypted]);
             resultOutput.value = btoa(String.fromCharCode(...result));
         } catch (error) {
@@ -145,6 +146,7 @@
         }
         try {
             const key = await generateKey(keyString);
+            // IV 生成：加密时生成一个随机的 12 字节（96 位）的 IV。这个 IV 被附加在加密后的数据前面，用于解密时的恢复。
             const resultArray = new Uint8Array(atob(encodedResult).split('').map(char => char.charCodeAt(0)));
             const iv = resultArray.slice(0, 12);
             const encryptedData = resultArray.slice(12);
