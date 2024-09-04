@@ -69,7 +69,7 @@
         }
 
         .result {
-            height: 150px;
+            height: 50px;
             margin-top: 20px;
             padding: 15px;
             background-color: #e9ecef;
@@ -86,17 +86,17 @@
     <h2>RSA Encryption/Decryption Validator</h2>
     <form id="rsaForm">
         <label for="publicKey">Public Key</label>
-        <textarea id="publicKey" rows="4" placeholder="Enter your RSA public key" required></textarea>
+        <textarea id="publicKey" rows="2" placeholder="Enter your RSA public key" required></textarea>
 
         <label for="privateKey">Private Key</label>
-        <textarea id="privateKey" rows="4" placeholder="Enter your RSA private key" required></textarea>
+        <textarea id="privateKey" rows="2" placeholder="Enter your RSA private key" required></textarea>
 
         <label for="plainText">Text to Encrypt</label>
-        <textarea id="plainText" rows="4" placeholder="Enter the text you want to encrypt"
+        <textarea id="plainText" rows="2" placeholder="Enter the text you want to encrypt"
                   required>Hello World...</textarea>
         <div id="charCounter">RSA 公钥，最多加密支持 190 个字节。</div>
         <label for="encryptedData">EncryptedData</label>
-        <textarea id="encryptedData" rows="4"></textarea>
+        <textarea id="encryptedData" rows="2"></textarea>
         <button type="button" onclick="validateRSA()">Validate</button>
     </form>
 
