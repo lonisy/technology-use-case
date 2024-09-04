@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Crypto API RSA Key Pair Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h3 {
+            text-align: center;
+            color: #333;
+        }
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+    <script>
+        async function generateRSAKeyPairAndPrint() {
+            try {
+                // 生成 RSA 密钥对
+                const keyPair = await window.crypto.subtle.generateKey(
+                    {
+                        name: "RSA-OAEP",
+                        modulusLength: 2048,
+                        publicExponent: new Uint8Array([0x01, 0x00, 0x01]),
+                        hash: {name: "SHA-256"},
+                    },
+                    true,
+                    ["encrypt", "decrypt"]
+                );
+
+                // 导出公钥和私钥
+                const publicKey = await window.crypto.subtle.exportKey(
+                    "spki", // 公钥的格式
+                    keyPair.publicKey
+                );
+                const privateKey = await window.crypto.subtle.exportKey(
+                    "pkcs8", // 私钥的格式
+                    keyPair.privateKey
+                );
+
+                // 将二进制数据转换为 Base64 编码的字符串
+                const publicKeyString = arrayBufferToBase64(publicKey);
+                const privateKeyString = arrayBufferToBase64(privateKey);
+
+                // 显示公钥和私钥
+                document.getElementById('publicKey').innerText = publicKeyString;
+                document.getElementById('privateKey').innerText = privateKeyString;
+
+                return keyPair; // 返回密钥对对象，可以在需要时继续使用
+            } catch (error) {
+                console.error('Error generating and exporting RSA key pair:', error);
+            }
+        }
+
+        // 将 ArrayBuffer 转换为 Base64 编码的字符串
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            const binary = bytes.reduce((acc, byte) => acc + String.fromCharCode(byte), '');
+            return btoa(binary);
+        }
+    </script>
+</head>
+<body>
+<div class="container">
+    <h1>RSA Key Pair Generator</h1>
+    <button onclick="generateRSAKeyPairAndPrint()">Generate RSA Key Pair</button>
+    <div>
+        <h3>Public Key:</h3>
+        <pre id="publicKey"></pre>
+    </div>
+    <div>
+        <h3>Private Key:</h3>
+        <pre id="privateKey"></pre>
+    </div>
+</div>
+</body>
+</html>
