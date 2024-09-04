@@ -3,172 +3,157 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Crypto AES Encryption Demo</title>
+    <title>AES Encryption/Decryption Demo</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
+            background-color: #f4f4f4;
         }
         .container {
-            background-color: #fff;
+            background: #fff;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            width: 400px;
-            text-align: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 600px;
         }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
+        h1 {
+            margin-top: 0;
         }
-        input, textarea {
+        input, button {
             width: 100%;
-            padding: 8px;
-            margin-bottom: 16px;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            font-size: 14px;
+            box-sizing: border-box;
         }
         button {
-            background-color: #4CAF50;
+            background-color: #007BFF;
             color: white;
-            padding: 10px 20px;
             border: none;
-            border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
         }
-        .result {
-            margin-top: 20px;
-            border: 1px solid #ccc;
+        textarea {
+            width: 100%;
+            height: 100px;
             padding: 10px;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            background-color: #f9f9f9;
-            white-space: pre-wrap;
-            text-align: left;
-            font-size: 14px;
+            box-sizing: border-box;
         }
     </style>
 </head>
 <body>
-
 <div class="container">
-    <h2>AES Encryption Demo</h2>
-    <label for="plaintext">Plain Text:</label>
-    <textarea id="plaintext" rows="4" placeholder="Enter your message to encrypt"></textarea>
-    <label for="encryptionKey">Encryption Key (16 bytes):</label>
-    <input type="text" id="encryptionKey" placeholder="Enter 16-byte encryption key">
-    <button onclick="encrypt()">Encrypt</button>
-    <div class="result" id="encryptedText"></div>
-    <button onclick="decrypt()">Decrypt</button>
-    <div class="result" id="decryptedText"></div>
+    <h1>AES Encryption/Decryption</h1>
+    <label for="key">Encryption Key (16 characters):</label>
+    <input type="text" id="key" maxlength="16" value="z4beC0PwCtKK9uAC">
+    <label for="text">Text to Encrypt/Decrypt:</label>
+    <textarea id="text"></textarea>
+    <button id="encrypt">Encrypt</button>
+    <button id="decrypt">Decrypt</button>
+    <label for="result">Result:</label>
+    <textarea id="result" readonly></textarea>
 </div>
 
 <script>
-    async function encrypt() {
-        const plaintext = document.getElementById('plaintext').value;
-        const encryptionKey = document.getElementById('encryptionKey').value;
+    const keyInput = document.getElementById('key');
+    const textInput = document.getElementById('text');
+    const resultOutput = document.getElementById('result');
+    const encryptButton = document.getElementById('encrypt');
+    const decryptButton = document.getElementById('decrypt');
 
-        if (encryptionKey.length !== 16) {
-            alert('Encryption key must be exactly 16 bytes (128 bits).');
-            return;
-        }
+    const ENCRYPTION_ALGORITHM = 'AES-GCM';
+    const KEY_LENGTH = 16; // Key length in bytes
 
-        try {
-            // Convert key and data to ArrayBuffer
-            const keyBuffer = new TextEncoder().encode(encryptionKey);
-            const dataBuffer = new TextEncoder().encode(plaintext);
-
-            // Import AES key
-            const aesKey = await window.crypto.subtle.importKey(
-                "raw",
-                keyBuffer,
-                { name: "AES-CBC" },
-                false,
-                ["encrypt", "decrypt"]
-            );
-
-            // Generate IV (Initialization Vector)
-            const iv = window.crypto.getRandomValues(new Uint8Array(16));
-
-            // Encrypt data
-            const encryptedData = await window.crypto.subtle.encrypt(
-                {
-                    name: "AES-CBC",
-                    iv: iv,
-                },
-                aesKey,
-                dataBuffer
-            );
-
-            // Convert ArrayBuffer to base64 string
-            const encryptedText = btoa(String.fromCharCode(...new Uint8Array(encryptedData)));
-
-            // Display encrypted text
-            // document.getElementById('encryptedText').textContent = `Encrypted Text (Base64):\n${encryptedText}`;
-            document.getElementById('encryptedText').textContent = `${encryptedText}`;
-        } catch (error) {
-            console.error('Encryption error:', error);
-            alert('Encryption failed. See console for error details.');
-        }
+    function encodeText(text) {
+        return new TextEncoder().encode(text);
     }
 
-    async function decrypt() {
-        const encryptedText = document.getElementById('encryptedText').textContent.trim();
-        const encryptionKey = document.getElementById('encryptionKey').value;
+    function decodeText(arrayBuffer) {
+        return new TextDecoder().decode(arrayBuffer);
+    }
 
-        if (encryptionKey.length !== 16) {
-            alert('Encryption key must be exactly 16 bytes (128 bits).');
+    async function generateKey(keyString) {
+        const keyData = encodeText(keyString.padEnd(KEY_LENGTH, ' '));
+        return crypto.subtle.importKey(
+            'raw',
+            keyData,
+            ENCRYPTION_ALGORITHM,
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
+
+    async function encryptText(key, text) {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encodedText = encodeText(text);
+        const encrypted = await crypto.subtle.encrypt(
+            {
+                name: ENCRYPTION_ALGORITHM,
+                iv: iv
+            },
+            key,
+            encodedText
+        );
+        return { encrypted: new Uint8Array(encrypted), iv };
+    }
+
+    async function decryptText(key, encryptedData, iv) {
+        const decrypted = await crypto.subtle.decrypt(
+            {
+                name: ENCRYPTION_ALGORITHM,
+                iv: iv
+            },
+            key,
+            encryptedData
+        );
+        return decodeText(decrypted);
+    }
+
+    encryptButton.addEventListener('click', async () => {
+        const keyString = keyInput.value;
+        const text = textInput.value;
+        if (keyString.length < KEY_LENGTH) {
+            alert(`Key must be at least ${KEY_LENGTH} characters long.`);
             return;
         }
-        console.log(encryptedText);
         try {
-
-            console.log(encryptedText);
-            // Convert key and data to ArrayBuffer
-            const keyBuffer = new TextEncoder().encode(encryptionKey);
-            const encryptedData = new Uint8Array(atob(encryptedText).split('').map(char => char.charCodeAt(0)));
-
-            // Import AES key
-            const aesKey = await window.crypto.subtle.importKey(
-                "raw",
-                keyBuffer,
-                { name: "AES-CBC" },
-                false,
-                ["encrypt", "decrypt"]
-            );
-
-            // Decrypt data
-            const decryptedData = await window.crypto.subtle.decrypt(
-                {
-                    name: "AES-CBC",
-                    iv: encryptedData.slice(0, 16), // Extract IV from encrypted data
-                },
-                aesKey,
-                encryptedData.slice(16) // Slice off IV to get actual encrypted data
-            );
-
-            // Convert ArrayBuffer to string
-            const decryptedText = new TextDecoder().decode(decryptedData);
-
-            // Display decrypted text
-            document.getElementById('decryptedText').textContent = `Decrypted Text:\n${decryptedText}`;
+            const key = await generateKey(keyString);
+            const { encrypted, iv } = await encryptText(key, text);
+            const result = new Uint8Array([...iv, ...encrypted]);
+            resultOutput.value = btoa(String.fromCharCode(...result));
         } catch (error) {
-            console.error('Decryption error:', error);
-            alert('Decryption failed. See console for error details.');
+            console.error(error);
         }
-    }
+    });
+
+    decryptButton.addEventListener('click', async () => {
+        const keyString = keyInput.value;
+        const encodedResult = resultOutput.value;
+        if (keyString.length < KEY_LENGTH) {
+            alert(`Key must be at least ${KEY_LENGTH} characters long.`);
+            return;
+        }
+        try {
+            const key = await generateKey(keyString);
+            const resultArray = new Uint8Array(atob(encodedResult).split('').map(char => char.charCodeAt(0)));
+            const iv = resultArray.slice(0, 12);
+            const encryptedData = resultArray.slice(12);
+            const decrypted = await decryptText(key, encryptedData, iv);
+            resultOutput.value = decrypted;
+        } catch (error) {
+            console.error(error);
+        }
+    });
 </script>
-
 </body>
 </html>
