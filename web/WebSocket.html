@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 80vw;
+            width: 100%;
+            min-height: 80vh;
+        }
+
+        .form-container {
+            padding: 20px;
+            width: 40%;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        .message-container {
+            padding: 20px;
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #555;
+            text-align: center;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .disconnect-btn {
+            background-color: #f44336;
+        }
+
+        .disconnect-btn:hover {
+            background-color: #e53935;
+        }
+
+        .clear-btn {
+            background-color: #f44336;
+        }
+
+        .clear-btn:hover {
+            background-color: #e53935;
+        }
+
+        .message-display {
+            background-color: #fafafa;
+            height: 100%;
+            overflow-y: auto;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- 左侧表单区域 -->
+    <div class="form-container">
+        <h2>WebSocket Tester</h2>
+
+        <div class="form-group">
+            <label for="ws-url">WebSocket 地址</label>
+            <input type="text" id="ws-url" placeholder="wss://example.com/socket"/>
+        </div>
+
+        <div class="status" id="status">连接状态: 未连接</div>
+
+        <div>
+            <button id="connect-btn">连接</button>
+            <button id="ping-btn">发送 ping 消息</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <button id="disconnect-btn" class="disconnect-btn">断开连接</button>
+        </div>
+        <div style="margin-top: 20px;">
+            <button id="send-btn">发送消息</button>
+            <button id="clear-btn" class="clear-btn">清空消息</button>
+        </div>
+    </div>
+
+    <!-- 右侧消息展示区域 -->
+    <div class="message-container">
+        <h2>消息展示</h2>
+        <div class="message-display" id="received-messages"></div>
+    </div>
+</div>
+
+<script>
+    let socket;
+    const wsUrlInput = document.getElementById('ws-url');
+    const statusDiv = document.getElementById('status');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const receivedMessagesDiv = document.getElementById('received-messages');
+    //ping-btn
+    const pingBtn = document.getElementById('ping-btn');
+
+    // 页面加载时，检查是否有存储的 WebSocket 地址
+    window.onload = function () {
+        const storedUrl = localStorage.getItem('wsUrl');
+        if (storedUrl) {
+            wsUrlInput.value = storedUrl;
+        }
+        connectBtn.click();
+    };
+
+    // 更新连接状态
+    function updateStatus(status) {
+        statusDiv.textContent = `连接状态: ${status}`;
+    }
+
+    function appendMessage(message) {
+        const date = new Date();
+        const time = date.toLocaleString();
+        receivedMessagesDiv.textContent += `${time}: ${message}\n`;
+    }
+
+    // 连接到 WebSocket
+    function connect() {
+        const url = wsUrlInput.value;
+        if (!url) {
+            alert('请输入 WebSocket 地址');
+            return;
+        }
+
+        // 存储 WebSocket 地址
+        localStorage.setItem('wsUrl', url);
+
+        socket = new WebSocket(url);
+
+        socket.onopen = function () {
+            updateStatus('已连接');
+            // 把 ping 字符串转化成 Uint8Array
+            const pingMessage = new TextEncoder().encode('ping');
+            socket.send(pingMessage);
+            appendMessage('ping');
+        };
+
+        socket.onmessage = function (event) {
+            console.log(event);
+            // 如果 event.data 是字符串，直接显示
+            if (typeof event.data === 'string') {
+                appendMessage(event.data);
+                return;
+            }
+
+            // 如果 event.data 是 Blob，转换成字符串
+            if (event.data instanceof Blob) {
+                // const reader = new FileReader();
+                // reader.onload = function () {
+                //     const message = reader.result;
+                //     receivedMessagesDiv.textContent += `${message}\n`;
+                // };
+                // reader.readAsText(event.data);
+
+                event.data.arrayBuffer().then(buffer => {
+                    const decoder = new TextDecoder();
+                    const message = decoder.decode(buffer);
+                    appendMessage(message);
+                });
+            }
+
+        };
+
+        socket.onclose = function () {
+            updateStatus('连接已关闭');
+        };
+
+        socket.onerror = function () {
+            updateStatus('连接错误');
+        };
+    }
+
+    // 断开 WebSocket 连接
+    function disconnect() {
+        if (socket) {
+            socket.close();
+            updateStatus('已断开');
+        }
+    }
+    pingBtn.addEventListener('click', function () {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            const pingMessage = new TextEncoder().encode('ping');
+            socket.send(pingMessage);
+            appendMessage('ping');
+        } else {
+            alert('未连接到 WebSocket');
+        }
+    });
+
+    // 发送消息
+    sendBtn.addEventListener('click', function () {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            const message = prompt('请输入要发送的消息:');
+            if (message) {
+                socket.send(message);
+            }
+        } else {
+            alert('未连接到 WebSocket');
+        }
+    });
+
+    // 清空接收的消息
+    clearBtn.addEventListener('click', function () {
+        receivedMessagesDiv.textContent = '';
+    });
+
+    // 连接和断开按钮事件
+    connectBtn.addEventListener('click', connect);
+    disconnectBtn.addEventListener('click', disconnect);
+</script>
+
+</body>
+</html>

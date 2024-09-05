@@ -173,9 +173,6 @@
             console.log("Private Key:", privateKeyString);
             document.getElementById('privateKey').value = privateKeyString;
 
-
-
-
         } catch (error) {
             console.error("Encryption/Decryption Error:", error);
         }
@@ -218,19 +215,6 @@
             console.error('Decryption error:', error);
             throw new Error('Decryption failed. Check the private key and encrypted data.');
         }
-    }
-
-
-    async function encryptDataWithPublicKey(data, publicKey) {
-        const encodedData = new TextEncoder().encode(data);
-        const encryptedData = await window.crypto.subtle.encrypt(
-            {
-                name: "RSA-OAEP",
-            },
-            publicKey,
-            encodedData
-        );
-        return encryptedData;
     }
 
     async function encryptDataWithPublicKeyBase64(data, base64PublicKey) {
