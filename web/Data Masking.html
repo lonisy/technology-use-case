@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本脱敏工具</title>
+    <script defer src="app.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 p-6">
+<div class="container mx-auto bg-white rounded-lg shadow-md p-6">
+    <h1 class="text-2xl font-bold mb-4">文本脱敏工具</h1>
+
+    <!-- 敏感字符串输入框 -->
+    <div class="mb-6">
+        <label for="sensitiveWords" class="block text-lg font-medium text-gray-700">敏感字符串 (一行一个):</label>
+        <textarea id="sensitiveWords" rows="6" class="w-full mt-2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="请输入敏感字符串"></textarea>
+    </div>
+
+    <!-- 需要脱敏的文本输入框 -->
+    <div class="mb-6">
+        <label for="inputText" class="block text-lg font-medium text-gray-700">要脱敏的文本:</label>
+        <textarea id="inputText" rows="4" class="w-full mt-2 p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="请输入要脱敏的文本"></textarea>
+    </div>
+
+    <!-- 按钮 -->
+    <div class="flex justify-end space-x-4">
+        <button id="desensitizeButton" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-md">脱敏</button>
+        <button id="resetButton" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-md">重置</button>
+    </div>
+
+    <!-- 脱敏后的结果 -->
+    <div class="mt-6">
+        <h2 class="text-lg font-medium text-gray-700">脱敏结果:</h2>
+        <pre id="resultText" class="mt-2 p-4 bg-gray-200 rounded-md text-xs"></pre>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sensitiveWordsTextarea = document.getElementById('sensitiveWords');
+        const inputTextTextarea = document.getElementById('inputText');
+        const resultTextDiv = document.getElementById('resultText');
+        const desensitizeButton = document.getElementById('desensitizeButton');
+        const resetButton = document.getElementById('resetButton');
+
+        // 加载本地存储中的敏感词
+        const savedSensitiveWords = localStorage.getItem('sensitiveWords');
+        if (savedSensitiveWords) {
+            sensitiveWordsTextarea.value = savedSensitiveWords;
+        }
+
+        // 监听敏感词变化并保存到本地存储
+        sensitiveWordsTextarea.addEventListener('input', function() {
+            localStorage.setItem('sensitiveWords', sensitiveWordsTextarea.value);
+        });
+
+        // 脱敏函数
+        function desensitize(text, sensitiveWords) {
+            sensitiveWords.forEach(word => {
+                const regex = new RegExp(word, 'g');
+                text = text.replace(regex, '*'.repeat(word.length));
+            });
+            return text;
+        }
+
+        // 点击脱敏按钮时执行脱敏操作
+        desensitizeButton.addEventListener('click', function() {
+            const inputText = inputTextTextarea.value;
+            const sensitiveWords = sensitiveWordsTextarea.value.split('\n').filter(word => word.trim() !== '');
+            const resultText = desensitize(inputText, sensitiveWords);
+            resultTextDiv.textContent = resultText;
+        });
+
+        // 点击重置按钮时清空文本框
+        resetButton.addEventListener('click', function() {
+            inputTextTextarea.value = '';
+            resultTextDiv.textContent = '';
+        });
+    });
+</script>
+</body>
+</html>
