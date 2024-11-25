@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- by lee: 文档元信息 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>时间处理应用</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // by lee: 页面加载后自动填充输入框，并初始化展示结果
+        document.addEventListener("DOMContentLoaded", () => {
+            const inputElement = document.getElementById("time-input");
+
+            // by lee: 从LocalStorage获取保存的值，没有则默认当前时间
+            const savedInput = localStorage.getItem("userInput");
+            const initialValue = savedInput || formatDate(new Date(), 'YYYY-MM-DDTHH:mm:ss');
+
+            inputElement.value = initialValue; // 默认填充上次输入或当前时间
+            updateTable(initialValue); // 初始化展示内容
+        });
+
+        // by lee: 格式化时间为指定格式
+        const formatDate = (date, format, isUTC = false) => {
+            const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
+            const replacements = {
+                'YYYY': isUTC ? date.getUTCFullYear() : date.getFullYear(),
+                'MM': String(isUTC ? date.getUTCMonth() + 1 : date.getMonth() + 1).padStart(2, '0'),
+                'DD': String(isUTC ? date.getUTCDate() : date.getDate()).padStart(2, '0'),
+                'HH': String(isUTC ? date.getUTCHours() : date.getHours()).padStart(2, '0'),
+                'mm': String(isUTC ? date.getUTCMinutes() : date.getMinutes()).padStart(2, '0'),
+                'ss': String(isUTC ? date.getUTCSeconds() : date.getSeconds()).padStart(2, '0'),
+                '星期X': `星期${weekDays[isUTC ? date.getUTCDay() : date.getDay()]}`
+            };
+            for (let key in replacements) {
+                format = format.replace(key, replacements[key]);
+            }
+            return format;
+        };
+
+        // by lee: 计算时间差，格式为 X天X小时X分X秒
+        const calculateDifference = (date) => {
+            const now = new Date();
+            const diffMillis = Math.abs(now - date); // by lee: 获取毫秒差值
+            const days = Math.floor(diffMillis / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diffMillis / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((diffMillis / (1000 * 60)) % 60);
+            const seconds = Math.floor((diffMillis / 1000) % 60);
+            return `${days}天${hours}小时${minutes}分${seconds}秒`;
+        };
+
+        // by lee: 更新表格的内容
+        const updateTable = (value) => {
+            let date;
+
+            // by lee: 判断输入类型是时间戳还是时间字符串
+            if (!isNaN(value)) {
+                const timestamp = Number(value);
+                date = timestamp < 1e12 ? new Date(timestamp * 1000) : new Date(timestamp); // 秒 -> 毫秒转换
+            } else {
+                date = new Date(value);
+            }
+
+            // by lee: 校验时间有效性
+            if (isNaN(date.getTime())) {
+                alert("请输入有效的时间戳或时间字符串！");
+                return;
+            }
+
+            // by lee: 格式化时间结果
+            const shanghaiTime1 = formatDate(date, 'YYYY-MM-DD HH:mm:ss');
+            const shanghaiTime2 = formatDate(date, 'YYYY年MM月DD日 星期X HH时mm分ss秒');
+            const utcTime = formatDate(date, 'YYYY-MM-DD HH:mm:ss', true);
+            const timestampSeconds = Math.floor(date.getTime() / 1000);
+            const timestampMilliseconds = date.getTime();
+            const timeDifference = calculateDifference(date);
+
+            // by lee: 更新到表格显示区域
+            document.getElementById("shanghai-time-1").innerText = shanghaiTime1;
+            document.getElementById("shanghai-time-2").innerText = shanghaiTime2;
+            document.getElementById("utc-time").innerText = utcTime;
+            document.getElementById("timestamp-seconds").innerText = timestampSeconds;
+            document.getElementById("timestamp-milliseconds").innerText = timestampMilliseconds;
+            document.getElementById("time-difference").innerText = timeDifference;
+
+            // by lee: 保存用户的输入到本地存储
+            localStorage.setItem("userInput", value);
+        };
+
+        // by lee: 输入框获得焦点时添加蓝色边框
+        const handleInputFocus = (input) => {
+            input.classList.add('ring', 'ring-blue-300', 'transition', 'duration-300');
+        };
+
+        // by lee: 输入框失去焦点时移除蓝色边框
+        const handleInputBlur = (input) => {
+            input.classList.remove('ring', 'ring-blue-300');
+        };
+
+        // by lee: 输入框实时输入时自动更新内容
+        const handleInputTyping = (event) => {
+            updateTable(event.target.value.trim());
+        };
+
+        // by lee: 点击按钮处理用户输入
+        const handleButtonClick = () => {
+            const inputElement = document.getElementById("time-input");
+            updateTable(inputElement.value.trim());
+        };
+    </script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-6">
+<div class="bg-white shadow-lg rounded-lg w-full sm:w-2/3 lg:w-1/2 p-8 transform transition duration-500 hover:scale-105">
+    <!-- by lee: 标题 -->
+    <h1 class="text-3xl font-extrabold text-center text-gray-800 mb-8 animate-bounce">时间处理应用</h1>
+
+    <!-- by lee: 输入区域 -->
+    <div class="mb-6">
+        <label for="time-input" class="block text-sm font-medium text-gray-700 mb-2">请输入时间戳或时间字符串：</label>
+        <div class="flex space-x-2">
+            <input
+                    id="time-input"
+                    type="text"
+                    placeholder="输入时间"
+                    class="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none"
+                    onfocus="handleInputFocus(this)"
+                    onblur="handleInputBlur(this)"
+                    oninput="handleInputTyping(event)">
+            <button
+                    onclick="handleButtonClick()"
+                    class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition">执行</button>
+        </div>
+    </div>
+
+    <!-- by lee: 数据展示表格 -->
+    <div>
+        <h2 class="text-lg font-semibold mb-4 text-gray-800">时间结果：</h2>
+        <div class="overflow-x-auto">
+            <table class="table-auto w-full border-collapse border border-gray-200 text-sm">
+                <thead class="bg-gray-50">
+                <tr>
+                    <th class="border border-gray-200 px-4 py-2">描述</th>
+                    <th class="border border-gray-200 px-4 py-2">结果</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">上海时区 (YYYY-MM-DD HH:mm:ss)</td>
+                    <td class="border border-gray-200 px-4 py-2" id="shanghai-time-1"></td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">上海时区 (YYYY年MM月DD日 星期X HH时mm分ss秒)</td>
+                    <td class="border border-gray-200 px-4 py-2" id="shanghai-time-2"></td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">UTC 时区 (YYYY-MM-DD HH:mm:ss)</td>
+                    <td class="border border-gray-200 px-4 py-2" id="utc-time"></td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">时间戳 (秒)</td>
+                    <td class="border border-gray-200 px-4 py-2" id="timestamp-seconds"></td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">时间戳 (毫秒)</td>
+                    <td class="border border-gray-200 px-4 py-2" id="timestamp-milliseconds"></td>
+                </tr>
+                <tr>
+                    <td class="border border-gray-200 px-4 py-2">距离当前时间差</td>
+                    <td class="border border-gray-200 px-4 py-2" id="time-difference"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>
