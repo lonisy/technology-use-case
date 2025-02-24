@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片合成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .editor-container {
+            position: relative;
+            width: calc(1600px*0.7);
+            height: calc(900px*0.7);
+            border: 2px dashed #ccc;
+            overflow: hidden;
+            background: #f0f0f0;
+            margin: auto;
+        }
+
+        .bg-image, .fg-image {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .fg-image {
+            width: 40%;
+        }
+    </style>
+</head>
+<body class="text-white flex flex-col items-center py-8">
+
+<h2 class="text-3xl mb-4">图片合成器</h2>
+
+<div id="dropArea" class="editor-container flex items-center justify-center text-gray-500">
+    拖入两张图片（自动处理）
+</div>
+
+<div class="mt-4 flex gap-4">
+    <div class="flex flex-col gap-2">
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700" onclick="moveBg(-50)">背景上移</button>
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700" onclick="moveBg(50)">背景下移</button>
+    </div>
+    <div class="flex flex-col gap-2">
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700" onclick="moveFg(-20)">小图上移</button>
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700" onclick="moveFg(20)">小图下移</button>
+    </div>
+    <div class="flex flex-col gap-2">
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700" onclick="scaleFg(1.1)">小图放大</button>
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700" onclick="scaleFg(0.9)">小图缩小</button>
+    </div>
+    <button class="bg-purple-500 px-4 py-2 rounded hover:bg-purple-700" onclick="swapImages()">交换图片层级</button>
+    <button class="bg-red-500 px-4 py-2 rounded hover:bg-red-700" onclick="clearConfig()">删除配置</button>
+    <button class="bg-pink-500 px-4 py-2 rounded hover:bg-pink-700" onclick="saveImage()">保存图片</button>
+</div>
+
+<script>
+    let images = [];
+    let backgroundImg, foregroundImg;
+    let bgTop = 0, fgTop = 0, fgScale = 1;
+    let isSwapped = false;
+
+    const dropArea = document.getElementById('dropArea');
+
+    dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropArea.style.borderColor = "#4A90E2";
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.style.borderColor = "#ccc";
+    });
+
+    dropArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+
+        dropArea.style.borderColor = "#ccc";
+        const files = [...e.dataTransfer.files].slice(0, 2);
+
+        for (let file of files) {
+            if (!file.type.startsWith('image/')) continue;
+
+            const img = await loadImage(file);
+            images.push(img);
+            if (images.length > 2) images.shift();
+
+            renderImages();
+            saveConfig();
+        }
+    });
+
+    function loadImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => resolve(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderImages() {
+        dropArea.innerHTML = '';
+        if (images.length > 0) {
+            backgroundImg = document.createElement('img');
+            backgroundImg.className = 'bg-image';
+            backgroundImg.src = images[0].src;
+            backgroundImg.width = 1600;
+            backgroundImg.height = 900;
+            backgroundImg.style.objectFit = 'cover';
+            // backgroundImg.style.clip = `rect(0px, 1600px, 450px, 0px)`;
+            backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
+            dropArea.appendChild(backgroundImg);
+        }
+
+        if (images.length > 1) {
+            foregroundImg = document.createElement('img');
+            foregroundImg.className = 'fg-image';
+            foregroundImg.src = images[1].src;
+            foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+            dropArea.appendChild(foregroundImg);
+        }
+    }
+
+    function moveBg(amount) {
+        bgTop += amount;
+        backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
+        saveConfig();
+    }
+
+    function moveFg(amount) {
+        fgTop += amount;
+        foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+        saveConfig();
+    }
+
+    function scaleFg(scaleFactor) {
+        fgScale *= scaleFactor;
+        foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+        saveConfig();
+    }
+
+    function swapImages() {
+        if (images.length < 2) return;
+        [images[0], images[1]] = [images[1], images[0]];
+        isSwapped = !isSwapped;
+        fgScale = 1;
+        renderImages();
+        saveConfig();
+    }
+
+    function saveConfig() {
+        localStorage.setItem('imageConfig', JSON.stringify({ images: images.map(img => img.src), bgTop, fgTop, fgScale, isSwapped }));
+    }
+
+    function loadConfig() {
+        const config = JSON.parse(localStorage.getItem('imageConfig'));
+        if (!config) return;
+        images = config.images.map(src => {
+            const img = new Image();
+            img.src = src;
+            return img;
+        });
+        ([bgTop, fgTop, fgScale, isSwapped] = [config.bgTop, config.fgTop, config.fgScale, config.isSwapped]);
+        renderImages();
+    }
+
+    function clearConfig() {
+        localStorage.removeItem('imageConfig');
+        images = [];
+        bgTop = 0; fgTop = 0; fgScale = 1;
+        dropArea.innerHTML = '拖入两张图片（自动处理）';
+    }
+
+    function saveImage() {
+        html2canvas(dropArea).then(canvas => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = 'composite-image.png';
+            link.click();
+        });
+    }
+
+    loadConfig();
+</script>
+<script src="./js/html2canvas.min.js"></script>
+</body>
+</html>
