@@ -9,4 +9,4 @@
 # gemini-3-pro-preview
 
 model="gemini-3-pro-preview"
-ai coder ./b.md ./b.html --model "$model" -D filename=b2.html -D filedir=b2.html &
+ai coder ./b2.md ./b2.html --model "$model" -D filename=b3.html -D filedir=b3.html &

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>图片合成器</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .editor-container {
+            position: relative;
+            width: calc(1600px*0.7);
+            height: calc(900px*0.7);
+            border: 2px dashed #ccc;
+            overflow: hidden;
+            background: #f0f0f0;
+            margin: auto;
+        }
+
+        .bg-image, .fg-image {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .fg-image {
+            width: 40%;
+        }
+    </style>
+</head>
+<body class="text-white flex flex-col items-center py-8">
+
+<h2 class="text-3xl mb-4 text-black">图片合成器</h2>
+
+<div id="dropArea" class="editor-container flex items-center justify-center text-gray-500">
+    拖入两张图片（自动处理：数字开头文件名置顶）
+</div>
+
+<div class="mt-4 flex gap-4">
+    <div class="flex flex-col gap-2">
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700 transition" onclick="moveBg(-50)">背景上移</button>
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700 transition" onclick="moveBg(50)">背景下移</button>
+    </div>
+    <div class="flex flex-col gap-2">
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700 transition" onclick="moveFg(-20)">小图上移</button>
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700 transition" onclick="moveFg(20)">小图下移</button>
+    </div>
+    <div class="flex flex-col gap-2">
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700 transition" onclick="scaleFg(1.1)">小图放大</button>
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700 transition" onclick="scaleFg(0.9)">小图缩小</button>
+    </div>
+    <button class="bg-purple-500 px-4 py-2 rounded hover:bg-purple-700 transition" onclick="swapImages()">交换图片层级</button>
+    <button class="bg-red-500 px-4 py-2 rounded hover:bg-red-700 transition" onclick="clearConfig()">删除配置</button>
+    <button class="bg-pink-500 px-4 py-2 rounded hover:bg-pink-700 transition shadow-lg" onclick="openSaveModal()">保存图片</button>
+</div>
+
+<!-- 自定义模态框 -->
+<div id="saveModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white text-gray-800 p-6 rounded-lg shadow-xl w-96 transform transition-all scale-100">
+        <h3 class="text-xl font-bold mb-4 border-b pb-2">保存图片</h3>
+        <p class="text-sm text-gray-500 mb-2">请输入文件名 (无需后缀):</p>
+        <input type="text" id="fileNameInput" class="w-full border border-gray-300 p-2 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700" placeholder="例如: composite-image">
+        <div class="flex justify-end gap-3">
+            <button onclick="closeModal()" class="px-4 py-2 rounded text-gray-600 hover:bg-gray-100 transition border border-gray-300">取消</button>
+            <button onclick="confirmSave()" class="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600 transition shadow-md">确定保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let images = [];
+    let backgroundImg, foregroundImg;
+    let bgTop = 0, fgTop = 0, fgScale = 1;
+    let isSwapped = false;
+
+    const dropArea = document.getElementById('dropArea');
+    const saveModal = document.getElementById('saveModal');
+    const fileNameInput = document.getElementById('fileNameInput');
+
+    dropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropArea.style.borderColor = "#4A90E2";
+    });
+
+    dropArea.addEventListener('dragleave', () => {
+        dropArea.style.borderColor = "#ccc";
+    });
+
+    dropArea.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropArea.style.borderColor = "#ccc";
+        
+        const files = [...e.dataTransfer.files].slice(0, 2);
+        if (files.length === 0) return;
+
+        // 临时存储加载的图片及其文件名
+        let newImages = [];
+
+        for (let file of files) {
+            if (!file.type.startsWith('image/')) continue;
+            const img = await loadImage(file);
+            // 将文件名暂存到对象上，方便后续排序
+            img.datasetName = file.name; 
+            newImages.push(img);
+        }
+
+        if (newImages.length === 0) return;
+
+        // 逻辑判断：如果是批量拖入2张图片
+        if (newImages.length === 2) {
+            // 排序规则：数字开头的文件名排在后面（即 index 1，作为前景图），非数字开头的排在前面（index 0，作为背景图）
+            newImages.sort((a, b) => {
+                const aIsDigit = /^\d/.test(a.datasetName);
+                const bIsDigit = /^\d/.test(b.datasetName);
+
+                // 如果 a 是数字开头，b 不是，a 排后面 (1)
+                if (aIsDigit && !bIsDigit) return 1;
+                // 如果 b 是数字开头，a 不是，a 排前面 (-1)
+                if (!aIsDigit && bIsDigit) return -1;
+                // 其它情况保持默认顺序
+                return 0;
+            });
+            
+            // 直接替换当前图片列表
+            images = newImages;
+        } else {
+            // 如果是单张拖入，保持原有追加逻辑
+            for (let img of newImages) {
+                images.push(img);
+                if (images.length > 2) images.shift();
+            }
+        }
+
+        renderImages();
+        saveConfig();
+    });
+
+    function loadImage(file) {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.src = e.target.result;
+                img.onload = () => resolve(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function renderImages() {
+        dropArea.innerHTML = '';
+        if (images.length > 0) {
+            backgroundImg = document.createElement('img');
+            backgroundImg.className = 'bg-image';
+            backgroundImg.src = images[0].src;
+            backgroundImg.width = 1600;
+            backgroundImg.height = 900;
+            backgroundImg.style.objectFit = 'cover';
+            backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
+            dropArea.appendChild(backgroundImg);
+        }
+
+        if (images.length > 1) {
+            foregroundImg = document.createElement('img');
+            foregroundImg.className = 'fg-image';
+            foregroundImg.src = images[1].src;
+            foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+            dropArea.appendChild(foregroundImg);
+        }
+    }
+
+    function moveBg(amount) {
+        if (!backgroundImg) return;
+        bgTop += amount;
+        backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
+        saveConfig();
+    }
+
+    function moveFg(amount) {
+        if (!foregroundImg) return;
+        fgTop += amount;
+        foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+        saveConfig();
+    }
+
+    function scaleFg(scaleFactor) {
+        if (!foregroundImg) return;
+        fgScale *= scaleFactor;
+        foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
+        saveConfig();
+    }
+
+    function swapImages() {
+        if (images.length < 2) return;
+        [images[0], images[1]] = [images[1], images[0]];
+        isSwapped = !isSwapped;
+        fgScale = 1;
+        renderImages();
+        saveConfig();
+    }
+
+    function saveConfig() {
+        localStorage.setItem('imageConfig', JSON.stringify({ images: images.map(img => img.src), bgTop, fgTop, fgScale, isSwapped }));
+    }
+
+    function loadConfig() {
+        const config = JSON.parse(localStorage.getItem('imageConfig'));
+        if (!config) return;
+        images = config.images.map(src => {
+            const img = new Image();
+            img.src = src;
+            return img;
+        });
+        ([bgTop, fgTop, fgScale, isSwapped] = [config.bgTop, config.fgTop, config.fgScale, config.isSwapped]);
+        renderImages();
+    }
+
+    function clearConfig() {
+        localStorage.removeItem('imageConfig');
+        images = [];
+        bgTop = 0; fgTop = 0; fgScale = 1;
+        dropArea.innerHTML = '拖入两张图片（自动处理：数字开头文件名置顶）';
+    }
+
+    // Modal Functions
+    function openSaveModal() {
+        if (images.length === 0) {
+            alert("没有图片可保存！");
+            return;
+        }
+        saveModal.classList.remove('hidden');
+        fileNameInput.value = '';
+        fileNameInput.focus();
+    }
+
+    function closeModal() {
+        saveModal.classList.add('hidden');
+    }
+
+    function confirmSave() {
+        const fileName = fileNameInput.value.trim() || 'composite-image';
+        closeModal();
+        
+        // Use html2canvas to capture and save
+        html2canvas(dropArea, {
+            useCORS: true, 
+            scale: 1 
+        }).then(canvas => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = fileName + '.png';
+            link.click();
+        });
+    }
+
+    // Allow pressing "Enter" to save inside the modal
+    fileNameInput.addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') {
+            confirmSave();
+        }
+    });
+
+    loadConfig();
+</script>
+<!-- 使用 CDN 确保 html2canvas 可直接加载运行 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</body>
+</html>
