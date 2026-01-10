@@ -31,7 +31,7 @@
 </head>
 <body class="text-white flex flex-col items-center py-8">
 
-<h2 class="text-3xl mb-4">图片合成器</h2>
+<h2 class="text-3xl mb-4 text-black">图片合成器</h2>
 
 <div id="dropArea" class="editor-container flex items-center justify-center text-gray-500">
     拖入两张图片（自动处理）
@@ -39,20 +39,33 @@
 
 <div class="mt-4 flex gap-4">
     <div class="flex flex-col gap-2">
-        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700" onclick="moveBg(-50)">背景上移</button>
-        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700" onclick="moveBg(50)">背景下移</button>
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700 transition" onclick="moveBg(-50)">背景上移</button>
+        <button class="bg-blue-500 px-4 py-2 rounded hover:bg-blue-700 transition" onclick="moveBg(50)">背景下移</button>
     </div>
     <div class="flex flex-col gap-2">
-        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700" onclick="moveFg(-20)">小图上移</button>
-        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700" onclick="moveFg(20)">小图下移</button>
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700 transition" onclick="moveFg(-20)">小图上移</button>
+        <button class="bg-green-500 px-4 py-2 rounded hover:bg-green-700 transition" onclick="moveFg(20)">小图下移</button>
     </div>
     <div class="flex flex-col gap-2">
-        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700" onclick="scaleFg(1.1)">小图放大</button>
-        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700" onclick="scaleFg(0.9)">小图缩小</button>
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700 transition" onclick="scaleFg(1.1)">小图放大</button>
+        <button class="bg-yellow-500 px-4 py-2 rounded hover:bg-yellow-700 transition" onclick="scaleFg(0.9)">小图缩小</button>
     </div>
-    <button class="bg-purple-500 px-4 py-2 rounded hover:bg-purple-700" onclick="swapImages()">交换图片层级</button>
-    <button class="bg-red-500 px-4 py-2 rounded hover:bg-red-700" onclick="clearConfig()">删除配置</button>
-    <button class="bg-pink-500 px-4 py-2 rounded hover:bg-pink-700" onclick="saveImage()">保存图片</button>
+    <button class="bg-purple-500 px-4 py-2 rounded hover:bg-purple-700 transition" onclick="swapImages()">交换图片层级</button>
+    <button class="bg-red-500 px-4 py-2 rounded hover:bg-red-700 transition" onclick="clearConfig()">删除配置</button>
+    <button class="bg-pink-500 px-4 py-2 rounded hover:bg-pink-700 transition shadow-lg" onclick="openSaveModal()">保存图片</button>
+</div>
+
+<!-- 自定义模态框 -->
+<div id="saveModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
+    <div class="bg-white text-gray-800 p-6 rounded-lg shadow-xl w-96 transform transition-all scale-100">
+        <h3 class="text-xl font-bold mb-4 border-b pb-2">保存图片</h3>
+        <p class="text-sm text-gray-500 mb-2">请输入文件名 (无需后缀):</p>
+        <input type="text" id="fileNameInput" class="w-full border border-gray-300 p-2 rounded mb-6 focus:outline-none focus:ring-2 focus:ring-pink-500 text-gray-700" placeholder="例如: composite-image">
+        <div class="flex justify-end gap-3">
+            <button onclick="closeModal()" class="px-4 py-2 rounded text-gray-600 hover:bg-gray-100 transition border border-gray-300">取消</button>
+            <button onclick="confirmSave()" class="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600 transition shadow-md">确定保存</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -62,6 +75,8 @@
     let isSwapped = false;
 
     const dropArea = document.getElementById('dropArea');
+    const saveModal = document.getElementById('saveModal');
+    const fileNameInput = document.getElementById('fileNameInput');
 
     dropArea.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -111,7 +126,6 @@
             backgroundImg.width = 1600;
             backgroundImg.height = 900;
             backgroundImg.style.objectFit = 'cover';
-            // backgroundImg.style.clip = `rect(0px, 1600px, 450px, 0px)`;
             backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
             dropArea.appendChild(backgroundImg);
         }
@@ -126,18 +140,21 @@
     }
 
     function moveBg(amount) {
+        if (!backgroundImg) return;
         bgTop += amount;
         backgroundImg.style.transform = `translate(-50%, ${bgTop}px)`;
         saveConfig();
     }
 
     function moveFg(amount) {
+        if (!foregroundImg) return;
         fgTop += amount;
         foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
         saveConfig();
     }
 
     function scaleFg(scaleFactor) {
+        if (!foregroundImg) return;
         fgScale *= scaleFactor;
         foregroundImg.style.transform = `translate(-50%, ${fgTop}px) scale(${fgScale})`;
         saveConfig();
@@ -175,38 +192,47 @@
         dropArea.innerHTML = '拖入两张图片（自动处理）';
     }
 
-    function saveImage() {
-        // 简单校验是否有内容
+    // Modal Functions
+    function openSaveModal() {
         if (images.length === 0) {
-            alert("请先添加图片！");
+            alert("没有图片可保存！");
             return;
         }
+        saveModal.classList.remove('hidden');
+        fileNameInput.value = 'composite-image';
+        fileNameInput.focus();
+    }
 
-        // 弹出输入框，请求用户输入文件名
-        let fileName = prompt("请输入文件名称（不包含后缀名）:", "composite-image");
+    function closeModal() {
+        saveModal.classList.add('hidden');
+    }
 
-        // 如果用户点击了取消（null），则终止保存
-        if (fileName === null) {
-            return;
-        }
-
-        // 如果用户输入为空，提供默认名称
-        if (fileName.trim() === "") {
-            fileName = "composite-image";
-        }
-
-        html2canvas(dropArea).then(canvas => {
+    function confirmSave() {
+        const fileName = fileNameInput.value.trim() || 'composite-image';
+        closeModal();
+        
+        // Use html2canvas to capture and save
+        html2canvas(dropArea, {
+            useCORS: true, 
+            scale: 1 
+        }).then(canvas => {
             const link = document.createElement('a');
             link.href = canvas.toDataURL('image/png');
-            // 自动添加后缀名
-            link.download = fileName.trim() + '.png';
+            link.download = fileName + '.png';
             link.click();
         });
     }
 
+    // Allow pressing "Enter" to save inside the modal
+    fileNameInput.addEventListener('keyup', function(event) {
+        if (event.key === 'Enter') {
+            confirmSave();
+        }
+    });
+
     loadConfig();
 </script>
-<!-- 使用 CDN 替代本地路径，确保单文件直接运行可用 -->
+<!-- 使用 CDN 确保 html2canvas 可直接加载运行 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </body>
 </html>
